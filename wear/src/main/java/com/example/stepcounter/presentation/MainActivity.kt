@@ -8,10 +8,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import com.example.stepcounter.presentation.theme.StepCounterTheme
+import com.google.android.gms.wearable.Wearable
 
 class MainActivity : ComponentActivity() {
 
     private var heartRate by mutableIntStateOf(72)
+    private var stepsGoal by mutableIntStateOf(10000)
+    private lateinit var wearDataListener: WearDataListener
     private lateinit var heartRateSensorManager: HeartRateSensorManager
 
 
@@ -37,11 +40,16 @@ class MainActivity : ComponentActivity() {
             heartRatePermissionLauncher.launch(heartRateSensorManager.requiredPermission)
         }
 
+        wearDataListener = WearDataListener(onStepsGoalChanged = { newGoal ->
+            runOnUiThread { stepsGoal = newGoal }
+        })
+
         setContent {
             StepCounterTheme {
                 WearFitnessApp(
                     heartRateSensorValue = heartRate,
-                    hasHeartRateSensor = heartRateSensorManager.hasHeartRateSensor
+                    hasHeartRateSensor = heartRateSensorManager.hasHeartRateSensor,
+                    stepsGoalFromPhone = stepsGoal
                 )
             }
         }
@@ -53,6 +61,9 @@ class MainActivity : ComponentActivity() {
         if (::heartRateSensorManager.isInitialized) {
             heartRateSensorManager.startListening()
         }
+        if (::wearDataListener.isInitialized) {
+            Wearable.getDataClient(this).addListener(wearDataListener)
+        }
     }
 
 
@@ -61,6 +72,9 @@ class MainActivity : ComponentActivity() {
         super.onPause()
         if (::heartRateSensorManager.isInitialized) {
             heartRateSensorManager.stopListening()
+        }
+        if (::wearDataListener.isInitialized) {
+            Wearable.getDataClient(this).removeListener(wearDataListener)
         }
     }
 
